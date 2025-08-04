@@ -2,31 +2,27 @@ const express = require("express");
 const cors = require("cors");
 const nodemailer = require("nodemailer");
 const mongoose = require("mongoose");
-const EmailRecord = require("./models/EmailRecord"); // Make sure this file exists
+const EmailRecord = require("./models/EmailRecord");
 
 const app = express();
-
 app.use(cors());
 app.use(express.json());
 
 // MongoDB Connection
 mongoose.connect("mongodb+srv://manjushree0228:Manju%402025@cluster0.aybteuu.mongodb.net/passkey?retryWrites=true&w=majority&appName=Cluster0")
-  .then(function () {
-    console.log("✅ Connected to MongoDB");
-  })
-  .catch(function () {
-    console.log("❌ Failed to connect to MongoDB");
-  });
+  .then(() => console.log(" Connected to MongoDB"))
+  .catch(() => console.log(" Failed to connect to MongoDB"));
 
-// Credential collection (for email & app password)
+// Credential collection
 const credential = mongoose.model("credential", {}, "bulkmail");
 
-// Send Email Route
+// Send Email
 app.post("/sendemail", function (req, res) {
+  const subject = req.body.subject || "A message from BulkMail";
   const msg = req.body.msg;
   const emailList = req.body.emailList;
 
-  console.log("📨 Email list received:", emailList);
+  console.log(" Email list received:", emailList);
 
   credential.find().then(function (data) {
     const transporter = nodemailer.createTransport({
@@ -43,20 +39,19 @@ app.post("/sendemail", function (req, res) {
           await transporter.sendMail({
             from: "manjushreekpm08@gmail.com",
             to: emailList[i],
-            subject: "A message from BulkMail",
+            subject: subject,
             text: msg,
           }, function (error, info) {
             if (error) {
-              console.log("❌ Failed to send to:", emailList[i], error);
+              console.log(" Failed to send to:", emailList[i], error);
             } else {
-              console.log("✅ Sent to:", emailList[i]);
+              console.log(" Sent to:", emailList[i]);
             }
           });
         }
 
-        // Save to DB - Success
         await EmailRecord.create({
-          subject: "A message from BulkMail",
+          subject: subject,
           body: msg,
           recipients: emailList,
           status: "Success",
@@ -64,11 +59,10 @@ app.post("/sendemail", function (req, res) {
 
         resolve("success");
       } catch (error) {
-        console.log("❌ Sending error:", error);
+        console.log(" Sending error:", error);
 
-        // Save to DB - Failure
         await EmailRecord.create({
-          subject: "A message from BulkMail",
+          subject: subject,
           body: msg,
           recipients: emailList,
           status: "Failed",
@@ -77,20 +71,16 @@ app.post("/sendemail", function (req, res) {
         reject("failed");
       }
     })
-      .then(function () {
-        res.send(true);
-      })
-      .catch(function () {
-        res.send(false);
-      });
+      .then(() => res.send(true))
+      .catch(() => res.send(false));
 
-  }).catch(function (error) {
-    console.log("❌ Credential Fetch Error:", error);
+  }).catch((error) => {
+    console.log(" Credential Fetch Error:", error);
     res.send(false);
   });
 });
 
-// Email History Route
+// Get Email History
 app.get("/emailhistory", async (req, res) => {
   try {
     const records = await EmailRecord.find().sort({ createdAt: -1 });
@@ -100,7 +90,31 @@ app.get("/emailhistory", async (req, res) => {
   }
 });
 
-// Server Start
+// Delete Email History by ID
+
+app.delete("/emailhistory/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    // Check if ID is a valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).send({ success: false, message: "Invalid ID format" });
+    }
+
+    const deleted = await EmailRecord.findByIdAndDelete(id);
+
+    if (deleted) {
+      res.send({ success: true });
+    } else {
+      res.status(404).send({ success: false, message: "Record not found" });
+    }
+  } catch (err) {
+    res.status(500).send({ success: false, message: "Error deleting record" });
+  }
+});
+
+
+// Server
 app.listen(5000, function () {
-  console.log("🚀 Server Started on port 5000");
+  console.log(" Server Started on port 5000");
 });
