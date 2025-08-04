@@ -8,6 +8,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.get("/", (req, res) => {
+  res.send("BulkMail backend is running ");
+});
+
 // MongoDB Connection
 mongoose.connect("mongodb+srv://manjushree0228:Manju%402025@cluster0.aybteuu.mongodb.net/passkey?retryWrites=true&w=majority&appName=Cluster0")
   .then(() => console.log(" Connected to MongoDB"))
